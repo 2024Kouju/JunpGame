@@ -1,3 +1,5 @@
+//‚Î‚Ë‚ğ“®‚©‚·ƒvƒƒOƒ‰ƒ€
+
 using UnityEngine;
 
 public class Spring : MonoBehaviour
