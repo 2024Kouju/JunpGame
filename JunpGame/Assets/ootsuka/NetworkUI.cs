@@ -183,6 +183,12 @@ public class NetworkUI : MonoBehaviour
             return;
         }
 
+        // 接続中または接続済みなら、接続メニューを非表示
+        if (manager.IsListening)
+        {
+            return;
+        }
+
         float panelWidth = 560f;
         float panelHeight = 520f;
 

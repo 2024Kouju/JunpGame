@@ -9,6 +9,9 @@ EditorBuildSettings:
     path: Assets/ootsuka/net_test.unity
     guid: 28f868863a4d50c4b8524a7dc9dca894
   - enabled: 1
+    path: Assets/ootsuka/GameScene.unity
+    guid: 67bfbc16a56bd1143ad8240ac05c6277
+  - enabled: 1
     path: Assets/Scenes/SampleScene.unity
     guid: 8c9cfa26abfee488c85f1582747f6a02
   m_configObjects: {}

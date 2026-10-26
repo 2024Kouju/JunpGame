@@ -66,7 +66,10 @@ public class PlayerNickname : NetworkBehaviour
     {
         UpdateNicknameText();
     }
-
+    public string GetNickname()
+    {
+        return nickname.Value.ToString();
+    }
     void UpdateNicknameText()
     {
         if (nicknameText != null)
