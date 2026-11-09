@@ -5,36 +5,51 @@ public class PlayerMove : NetworkBehaviour
 {
     public float moveSpeed = 5f;
 
-    private Vector2 moveInput;
+    // スタート位置の間隔
+    public float startSpacing = 3f;
 
     public override void OnNetworkSpawn()
     {
-        // サーバー側で初期位置を設定
-        if (IsServer)
+        SpriteRenderer sr = GetComponent<SpriteRenderer>();
+
+        // Host = 赤、2人目 = 青、3人目 = 黄色
+        if (sr != null)
         {
+            switch (OwnerClientId)
+            {
+                case 0:
+                    sr.color = Color.red;
+                    break;
+
+                case 1:
+                    sr.color = Color.blue;
+                    break;
+
+                case 2:
+                    sr.color = Color.yellow;
+                    break;
+
+                default:
+                    sr.color = Color.white;
+                    break;
+            }
+        }
+
+        // 自分が操作するPlayerだけ初期位置を設定
+        if (IsOwner)
+        {
+            float startX = ((int)OwnerClientId - 1) * startSpacing;
+
             transform.position = new Vector3(
-                OwnerClientId * 3f,
+                startX,
                 0f,
                 0f
             );
-        }
-
-        // Playerの色を設定
-        SpriteRenderer sr =
-            GetComponent<SpriteRenderer>();
-
-        if (sr != null)
-        {
-            // Host = 赤、Client = 青
-            sr.color = OwnerClientId == 0
-                ? Color.red
-                : Color.blue;
         }
     }
 
     void Update()
     {
-        // 自分のプレイヤーだけ操作
         if (!IsSpawned || !IsOwner)
             return;
 
@@ -46,28 +61,10 @@ public class PlayerMove : NetworkBehaviour
         if (Input.GetKey(KeyCode.W)) y = 1f;
         if (Input.GetKey(KeyCode.S)) y = -1f;
 
-        moveInput = new Vector2(x, y).normalized;
-    }
-
-    void FixedUpdate()
-    {
-        if (!IsSpawned || !IsOwner)
-            return;
-
-        // サーバーに移動入力を送信
-        MoveRpc(moveInput);
-    }
-
-    [Rpc(SendTo.Server)]
-    private void MoveRpc(Vector2 direction)
-    {
-        Vector3 movement = new Vector3(
-            direction.x,
-            direction.y,
-            0f
-        );
+        Vector3 direction = new Vector3(x, y, 0f);
 
         transform.position +=
-            movement * moveSpeed * Time.fixedDeltaTime;
+            direction.normalized *
+            moveSpeed * Time.deltaTime;
     }
 }
