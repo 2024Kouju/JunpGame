@@ -21,23 +21,29 @@ public class PlayerAnimation : MonoBehaviour
     {
         float move = Input.GetAxisRaw("Horizontal");
 
-        playerRb.velocity = new Vector2(move * speed, playerRb.velocity.y);
+        playerRb.velocity =
+            new Vector2(move * speed, playerRb.velocity.y);
 
         animator.SetBool("isWalking", move != 0);
+
+        if (Input.GetKeyDown(KeyCode.W))
+        {
+            animator.SetTrigger("JumpTrigger");
+        }
 
         if (move > 0)
         {
             transform.localScale =
                 new Vector3(-originalScale.x,
-                             originalScale.y,
-                             originalScale.z);
+                            originalScale.y,
+                            originalScale.z);
         }
         else if (move < 0)
         {
             transform.localScale =
                 new Vector3(originalScale.x,
-                             originalScale.y,
-                             originalScale.z);
+                            originalScale.y,
+                            originalScale.z);
         }
     }
 }
