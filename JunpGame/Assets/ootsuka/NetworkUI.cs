@@ -1,23 +1,30 @@
 
 using UnityEngine;
+using UnityEngine.UI;
 using Unity.Netcode;
 using Unity.Netcode.Transports.UTP;
 using UnityEngine.SceneManagement;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using TMPro;
 
 public class NetworkUI : MonoBehaviour
 {
+    [Header("入力欄")]
+    public TMP_InputField playerNameInput;
+    public TMP_InputField ipAddressInput;
+
+    [Header("表示")]
+    public TMP_Text localIPAddressText;
+    public TMP_Text statusText;
+    public TMP_Text maxPlayersText;
+
     [Header("接続設定")]
-    public string hostAddress = "192.168.1.25";
     public ushort port = 7777;
 
     [Header("対戦人数")]
     public int maxPlayers = 2;
-
-    [Header("ニックネーム")]
-    public string nicknameInput = "Player";
 
     public static string LocalNickname = "Player";
 
@@ -26,29 +33,43 @@ public class NetworkUI : MonoBehaviour
 
     private NetworkManager manager;
     private string localIPAddress = "取得中";
-
     private bool connecting = false;
 
-    void Awake()
+
+
+    void Start()
     {
+        // NetworkManagerを取得
         manager = NetworkManager.Singleton;
 
         if (manager == null)
         {
             Debug.LogError("NetworkManagerがありません");
+            SetStatus("NetworkManagerがありません");
             return;
         }
 
+        // 接続承認を有効化
         manager.NetworkConfig.ConnectionApproval = true;
         manager.ConnectionApprovalCallback = ApprovalCheck;
 
-        // 接続成功時の処理
+        // 接続イベント登録
         manager.OnClientConnectedCallback += OnClientConnected;
-    }
+        manager.OnClientDisconnectCallback += OnClientDisconnect;
 
-    void Start()
-    {
+        // IPアドレス取得
         localIPAddress = GetLocalIPAddress();
+
+        // IP入力欄に自分のIPアドレスを初期入力
+        if (ipAddressInput != null)
+        {
+            ipAddressInput.text = localIPAddress;
+        }
+
+        UpdateIPAddressText();
+        UpdateMaxPlayersText();
+
+        SetStatus("接続待機中");
     }
 
     void OnDestroy()
@@ -56,6 +77,7 @@ public class NetworkUI : MonoBehaviour
         if (manager != null)
         {
             manager.OnClientConnectedCallback -= OnClientConnected;
+            manager.OnClientDisconnectCallback -= OnClientDisconnect;
         }
     }
 
@@ -84,12 +106,40 @@ public class NetworkUI : MonoBehaviour
     // 接続成功
     void OnClientConnected(ulong clientId)
     {
-        if (clientId == manager.LocalClientId && manager.IsHost)
+        if (manager == null)
+            return;
+
+        // 自分自身の接続成功
+        if (clientId == manager.LocalClientId)
         {
-            manager.SceneManager.LoadScene(
-                "LobbyScene",
-                LoadSceneMode.Single
-            );
+            connecting = false;
+
+            if (manager.IsHost)
+            {
+                SetStatus("LobbySceneへ移動します");
+
+                manager.SceneManager.LoadScene(
+                    "LobbyScene",
+                    LoadSceneMode.Single
+                );
+            }
+            else
+            {
+                SetStatus("Hostに接続しました");
+            }
+        }
+    }
+
+    // 接続切断
+    void OnClientDisconnect(ulong clientId)
+    {
+        if (manager == null)
+            return;
+
+        if (clientId == manager.LocalClientId)
+        {
+            connecting = false;
+            SetStatus("接続が切断されました");
         }
     }
 
@@ -135,7 +185,7 @@ public class NetworkUI : MonoBehaviour
     // ニックネーム保存
     void SaveNickname()
     {
-        string trimmedName = nicknameInput.Trim();
+        string trimmedName = playerNameInput.text.Trim();
 
         if (string.IsNullOrWhiteSpace(trimmedName))
             trimmedName = "Player";
@@ -149,10 +199,10 @@ public class NetworkUI : MonoBehaviour
         LocalNickname = trimmedName;
     }
 
-    // Host開始
-    void StartAsHost()
+    // Host開始ボタン
+    public void StartAsHost()
     {
-        if (connecting || manager.IsListening)
+        if (connecting || manager == null || manager.IsListening)
             return;
 
         SaveNickname();
@@ -164,246 +214,109 @@ public class NetworkUI : MonoBehaviour
 
         if (transport == null)
         {
-            Debug.LogError("UnityTransportがありません");
+            SetStatus("UnityTransportがありません");
             return;
         }
 
         transport.SetConnectionData("0.0.0.0", port);
 
         connecting = true;
+        SetStatus("Hostを開始しています...");
 
         if (!manager.StartHost())
         {
             connecting = false;
+            SetStatus("Hostの起動に失敗しました");
             Debug.LogError("Hostの起動に失敗しました");
         }
     }
 
-    // Client接続
-    void StartAsClient()
+    // Client接続ボタン
+    public void StartAsClient()
     {
-        if (connecting || manager.IsListening)
+        if (connecting || manager == null || manager.IsListening)
             return;
 
         SaveNickname();
+
+        string hostIP = ipAddressInput.text.Trim();
+
+        if (string.IsNullOrWhiteSpace(hostIP))
+        {
+            SetStatus("HostのIPアドレスを入力してください");
+            return;
+        }
 
         UnityTransport transport =
             manager.GetComponent<UnityTransport>();
 
         if (transport == null)
         {
-            Debug.LogError("UnityTransportがありません");
+            SetStatus("UnityTransportがありません");
             return;
         }
 
-        transport.SetConnectionData(hostAddress, port);
+        transport.SetConnectionData(hostIP, port);
 
         connecting = true;
+        SetStatus("Hostに接続しています...");
 
         if (!manager.StartClient())
         {
             connecting = false;
+            SetStatus("Clientの接続開始に失敗しました");
             Debug.LogError("Clientの接続開始に失敗しました");
         }
     }
 
-    // UI
-    void OnGUI()
+    // 2人対戦ボタン
+    public void SetMaxPlayers2()
     {
-        if (manager == null || manager.IsListening)
+        if (connecting || (manager != null && manager.IsListening))
             return;
 
-        float panelWidth = 620f;
-        float panelHeight = 500f;
+        maxPlayers = 2;
+        UpdateMaxPlayersText();
+    }
 
-        float panelX = (Screen.width - panelWidth) * 0.5f;
-        float panelY = (Screen.height - panelHeight) * 0.5f;
+    // 3人対戦ボタン
+    public void SetMaxPlayers3()
+    {
+        if (connecting || (manager != null && manager.IsListening))
+            return;
 
-        GUILayout.BeginArea(
-            new Rect(panelX, panelY, panelWidth, panelHeight),
-            GUI.skin.box);
+        maxPlayers = 3;
+        UpdateMaxPlayersText();
+    }
 
-        //-------------------------------------------------
-        // スタイル
-        //-------------------------------------------------
-
-        GUIStyle titleStyle = new GUIStyle(GUI.skin.label);
-        titleStyle.fontSize = 32;
-        titleStyle.fontStyle = FontStyle.Bold;
-        titleStyle.alignment = TextAnchor.MiddleCenter;
-        titleStyle.normal.textColor =
-            new Color(1f, 0.9f, 0.3f);
-
-        GUIStyle labelStyle = new GUIStyle(GUI.skin.label);
-        labelStyle.fontSize = 20;
-
-        GUIStyle textFieldStyle =
-            new GUIStyle(GUI.skin.textField);
-        textFieldStyle.fontSize = 18;
-
-        GUIStyle buttonStyle =
-            new GUIStyle(GUI.skin.button);
-        buttonStyle.fontSize = 18;
-
-        //-------------------------------------------------
-        // タイトル
-        //-------------------------------------------------
-
-        GUILayout.Space(15);
-
-        GUILayout.Label(
-            "LAN対戦メニュー",
-            titleStyle,
-            GUILayout.Height(45));
-
-        GUILayout.Space(15);
-
-        //-------------------------------------------------
-        // 接続情報
-        //-------------------------------------------------
-
-        GUILayout.Label(
-            "このPCのIPアドレス : " + localIPAddress,
-            labelStyle);
-
-        GUILayout.Label(
-            "ポート番号 : " + port,
-            labelStyle);
-
-        GUILayout.Space(20);
-
-        //-------------------------------------------------
-        // ニックネーム
-        //-------------------------------------------------
-
-        GUILayout.Label(
-            "ニックネーム",
-            labelStyle);
-
-        nicknameInput = GUILayout.TextField(
-            nicknameInput,
-            textFieldStyle,
-            GUILayout.Height(40));
-
-        GUILayout.Space(20);
-
-        //-------------------------------------------------
-        // 人数設定
-        //-------------------------------------------------
-
-        GUILayout.Label(
-            "対戦人数",
-            labelStyle);
-
-        GUILayout.BeginHorizontal();
-
-        Color oldColor = GUI.backgroundColor;
-
-        GUI.backgroundColor =
-            maxPlayers == 2
-            ? new Color(0.3f, 0.8f, 0.3f)
-            : Color.white;
-
-        if (GUILayout.Button(
-            "2人対戦",
-            buttonStyle,
-            GUILayout.Height(40)))
+    // 人数表示
+    void UpdateMaxPlayersText()
+    {
+        if (maxPlayersText != null)
         {
-            maxPlayers = 2;
+            maxPlayersText.text =
+                "対戦人数：" + maxPlayers + "人";
         }
+    }
 
-        GUI.backgroundColor =
-            maxPlayers == 3
-            ? new Color(0.3f, 0.8f, 0.3f)
-            : Color.white;
-
-        if (GUILayout.Button(
-            "3人対戦",
-            buttonStyle,
-            GUILayout.Height(40)))
+    // IP表示
+    void UpdateIPAddressText()
+    {
+        if (localIPAddressText != null)
         {
-            maxPlayers = 3;
+            localIPAddressText.text =
+                "自分のIPアドレス：" + localIPAddress;
         }
+    }
 
-        GUI.backgroundColor = oldColor;
+    // 接続状態表示
+    void SetStatus(string message)
+    {
+        Debug.Log(message);
 
-        GUILayout.EndHorizontal();
-
-        GUILayout.Space(8);
-
-        GUILayout.Label(
-            "現在の設定 : " + maxPlayers + "人",
-            labelStyle);
-
-        GUILayout.Space(20);
-
-        //-------------------------------------------------
-        // ホストIP
-        //-------------------------------------------------
-
-        GUILayout.Label(
-            "HostのIPアドレス",
-            labelStyle);
-
-        hostAddress = GUILayout.TextField(
-            hostAddress,
-            textFieldStyle,
-            GUILayout.Height(40));
-
-        GUILayout.Space(25);
-
-        //-------------------------------------------------
-        // ボタン
-        //-------------------------------------------------
-
-        GUI.enabled = !connecting;
-
-        GUI.backgroundColor =
-            new Color(0.4f, 0.8f, 0.4f);
-
-        if (GUILayout.Button(
-            "Hostとして開始",
-            buttonStyle,
-            GUILayout.Height(55)))
+        if (statusText != null)
         {
-            StartAsHost();
+            statusText.text = message;
         }
-
-        GUILayout.Space(10);
-
-        GUI.backgroundColor =
-            new Color(0.4f, 0.7f, 1.0f);
-
-        if (GUILayout.Button(
-            "Clientとして接続",
-            buttonStyle,
-            GUILayout.Height(55)))
-        {
-            StartAsClient();
-        }
-
-        GUI.backgroundColor = oldColor;
-        GUI.enabled = true;
-
-        //-------------------------------------------------
-        // 接続中
-        //-------------------------------------------------
-
-        if (connecting)
-        {
-            GUILayout.Space(15);
-
-            GUIStyle centerLabel =
-                new GUIStyle(labelStyle);
-
-            centerLabel.alignment =
-                TextAnchor.MiddleCenter;
-
-            GUILayout.Label(
-                "接続処理中...",
-                centerLabel);
-        }
-
-        GUILayout.EndArea();
     }
 }
