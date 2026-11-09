@@ -576,6 +576,7 @@ GameObject:
   - component: {fileID: 1248885230}
   - component: {fileID: 1248885233}
   - component: {fileID: 1248885232}
+  - component: {fileID: 1248885234}
   m_Layer: 0
   m_Name: testop
   m_TagString: Player
@@ -751,6 +752,20 @@ MonoBehaviour:
   colorDefault: {r: 0.8, g: 0.8, b: 0.8, a: 1}
   colorSelected: {r: 0.25, g: 0.65, b: 0.8, a: 1}
   nameLabel: {fileID: 0}
+--- !u!114 &1248885234
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1248885227}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 94af71c671eb44d439d110ba10c76dfd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  player: {fileID: 1248885229}
+  offsetZ: -10
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
