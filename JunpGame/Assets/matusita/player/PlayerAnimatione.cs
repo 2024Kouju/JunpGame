@@ -9,6 +9,24 @@ public class PlayerAnimation : MonoBehaviour
 
     private Vector3 originalScale;
 
+    private bool isDamaged = false;
+    private void OnCollisionEnter2D(Collision2D collision)
+    {
+        if (collision.gameObject.CompareTag("Enemy") && !isDamaged)
+        {
+            isDamaged = true;
+
+            animator.SetTrigger("DamageTrigger");
+
+            Invoke(nameof(ResetDamage), 0.5f);
+        }
+    }
+
+    private void ResetDamage()
+    {
+        isDamaged = false;
+    }
+
     void Start()
     {
         animator = GetComponent<Animator>();
