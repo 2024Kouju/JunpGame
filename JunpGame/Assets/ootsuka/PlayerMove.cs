@@ -1,18 +1,29 @@
+
 using UnityEngine;
 using Unity.Netcode;
 
+[RequireComponent(typeof(Rigidbody2D))]
+[RequireComponent(typeof(Collider2D))]
 public class PlayerMove : NetworkBehaviour
 {
     public float moveSpeed = 5f;
-
-    // スタート位置の間隔
     public float startSpacing = 3f;
+
+    private Rigidbody2D rb;
+    private Vector2 moveInput;
+
+    private void Awake()
+    {
+        rb = GetComponent<Rigidbody2D>();
+
+        // 回転を禁止
+        rb.constraints = RigidbodyConstraints2D.FreezeRotation;
+    }
 
     public override void OnNetworkSpawn()
     {
         SpriteRenderer sr = GetComponent<SpriteRenderer>();
 
-        // Host = 赤、2人目 = 青、3人目 = 黄色
         if (sr != null)
         {
             switch (OwnerClientId)
@@ -35,20 +46,17 @@ public class PlayerMove : NetworkBehaviour
             }
         }
 
-        // 自分が操作するPlayerだけ初期位置を設定
-        if (IsOwner)
+        // 初期位置はHostが決定
+        if (IsServer)
         {
-            float startX = ((int)OwnerClientId - 1) * startSpacing;
+            float startX =
+                ((int)OwnerClientId - 1) * startSpacing;
 
-            transform.position = new Vector3(
-                startX,
-                0f,
-                0f
-            );
+            rb.position = new Vector2(startX, 0f);
         }
     }
 
-    void Update()
+    private void Update()
     {
         if (!IsSpawned || !IsOwner)
             return;
@@ -61,10 +69,28 @@ public class PlayerMove : NetworkBehaviour
         if (Input.GetKey(KeyCode.W)) y = 1f;
         if (Input.GetKey(KeyCode.S)) y = -1f;
 
-        Vector3 direction = new Vector3(x, y, 0f);
+        Vector2 input = new Vector2(x, y).normalized;
 
-        transform.position +=
-            direction.normalized *
-            moveSpeed * Time.deltaTime;
+        SendInputServerRpc(input);
+    }
+
+    [ServerRpc(Delivery = RpcDelivery.Unreliable)]
+    private void SendInputServerRpc(Vector2 input)
+    {
+        moveInput = input;
+    }
+
+    private void FixedUpdate()
+    {
+        if (!IsSpawned || !IsServer)
+            return;
+
+        // Hostが移動を管理
+        rb.velocity = moveInput * moveSpeed;
+    }
+
+    public override void OnNetworkDespawn()
+    {
+        moveInput = Vector2.zero;
     }
 }
