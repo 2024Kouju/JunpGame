@@ -1,13 +1,17 @@
 using UnityEngine;
 
+
 public class PlayerAnimation : MonoBehaviour
 {
     private Animator animator;
     private Rigidbody2D playerRb;
 
+
     public float speed = 5f;
 
+
     private Vector3 originalScale;
+
 
     private bool isDamaged = false;
     private void OnCollisionEnter2D(Collision2D collision)
@@ -16,24 +20,30 @@ public class PlayerAnimation : MonoBehaviour
         {
             isDamaged = true;
 
+
             animator.SetTrigger("DamageTrigger");
+
 
             Invoke(nameof(ResetDamage), 0.5f);
         }
     }
+
 
     private void ResetDamage()
     {
         isDamaged = false;
     }
 
+
     void Start()
     {
         animator = GetComponent<Animator>();
         playerRb = GetComponent<Rigidbody2D>();
 
+
         originalScale = transform.localScale;
     }
+
 
     void Update()
     {
@@ -44,10 +54,8 @@ public class PlayerAnimation : MonoBehaviour
 
         animator.SetBool("isWalking", move != 0);
 
-        if (Input.GetKeyDown(KeyCode.W))
-        {
-            animator.SetTrigger("JumpTrigger");
-        }
+        bool isJump = Mathf.Abs(playerRb.velocity.y) > 0.1f;
+        animator.SetBool("isJump", isJump);
 
         if (move > 0)
         {
