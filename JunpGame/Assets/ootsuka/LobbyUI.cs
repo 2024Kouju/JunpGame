@@ -155,11 +155,19 @@ public class LobbyUI : MonoBehaviour
         if (manager == null || !manager.IsHost)
             return;
 
+        if (!manager.IsListening)
+        {
+            Debug.LogError("ネットワークが開始されていません");
+            return;
+        }
+
         Debug.Log("GameSceneへ移動します");
 
-        manager.SceneManager.LoadScene(
+        var status = manager.SceneManager.LoadScene(
             "GameScene",
             LoadSceneMode.Single
         );
+
+        Debug.Log("シーン移動結果 : " + status);
     }
 }
