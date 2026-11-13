@@ -44,31 +44,6 @@ public class PlayerMove : NetworkBehaviour
 
     public override void OnNetworkSpawn()
     {
-        // プレイヤーごとに色を変更
-        SpriteRenderer sr = GetComponent<SpriteRenderer>();
-
-        if (sr != null)
-        {
-            switch (OwnerClientId)
-            {
-                case 0:
-                    sr.color = Color.red;
-                    break;
-
-                case 1:
-                    sr.color = Color.blue;
-                    break;
-
-                case 2:
-                    sr.color = Color.yellow;
-                    break;
-
-                default:
-                    sr.color = Color.white;
-                    break;
-            }
-        }
-
         // サーバー側でシーン切り替えを監視
         if (IsServer)
         {

@@ -2,53 +2,48 @@
 using UnityEngine;
 using Unity.Netcode;
 using UnityEngine.SceneManagement;
+using System;
 
 public class LobbyUI : MonoBehaviour
 {
     private NetworkManager manager;
+    private LobbyPlayer localPlayer;
 
     private int fontSize = 22;
 
-    // 自分のPlayer
-    private LobbyPlayer localPlayer;
-
-    void Start()
+    private void Start()
     {
         manager = NetworkManager.Singleton;
     }
 
-    void OnGUI()
+    private void OnGUI()
     {
-        // NetworkManager取得
         if (manager == null)
-        {
             manager = NetworkManager.Singleton;
-        }
 
         if (manager == null)
-        {
-            GUI.Label(new Rect(30, 30, 500, 40),
-                "NetworkManagerが見つかりません");
             return;
-        }
+
+        // GUIの有効状態をリセット
+        GUI.enabled = true;
+
+        GUIStyle titleStyle = new GUIStyle(GUI.skin.label);
+        titleStyle.fontSize = 30;
+        titleStyle.alignment = TextAnchor.MiddleCenter;
+        titleStyle.normal.textColor = Color.white;
 
         GUIStyle style = new GUIStyle(GUI.skin.label);
-        style.fontSize = 25;
+        style.fontSize = fontSize;
+        style.alignment = TextAnchor.MiddleCenter;
         style.normal.textColor = Color.white;
 
-        GUI.Label(new Rect(30, 30, 500, 40),
-            "ロビー画面", style);
+        GUI.Label(
+            new Rect(0, 20, 800, 50),
+            "キャラクター選択",
+            titleStyle
+        );
 
-        GUI.Label(new Rect(30, 80, 500, 40),
-            "Client : " + manager.IsClient, style);
-
-        GUI.Label(new Rect(30, 120, 500, 40),
-            "Host : " + manager.IsHost, style);
-
-        GUI.Label(new Rect(30, 160, 500, 40),
-            "IsListening : " + manager.IsListening, style);
-
-        // Player取得
+        // 自分のPlayerを取得
         localPlayer = null;
 
         if (manager.IsClient && manager.LocalClient != null)
@@ -63,40 +58,143 @@ public class LobbyUI : MonoBehaviour
             }
         }
 
-        // Client専用：準備ボタン
-        if (manager.IsClient && !manager.IsHost)
+        // Player取得・所有権確認
+        if (localPlayer != null)
         {
-            if (localPlayer != null)
+            GUI.Label(
+                new Rect(20, 65, 760, 30),
+                "Player取得成功 / IsOwner : " + localPlayer.IsOwner,
+                style
+            );
+        }
+        else
+        {
+            GUI.Label(
+                new Rect(20, 65, 760, 30),
+                "Player取得待機中",
+                style
+            );
+        }
+
+        // Spawn済みの全Playerを取得
+        LobbyPlayer[] players =
+            FindObjectsOfType<LobbyPlayer>();
+
+        // ClientId順に並べる
+        Array.Sort(players, (a, b) =>
+            a.OwnerClientId.CompareTo(b.OwnerClientId)
+        );
+
+        // 全プレイヤーを表示
+        for (int i = 0; i < players.Length; i++)
+        {
+            LobbyPlayer player = players[i];
+
+            if (player == null || !player.IsSpawned)
+                continue;
+
+            // 2人を左右に配置
+            int x = i == 0 ? 100 : 500;
+
+            string playerType =
+                player.OwnerClientId == 0
+                ? "HOST"
+                : "CLIENT";
+
+            // プレイヤー名
+            GUI.Label(
+                new Rect(x, 105, 200, 40),
+                playerType,
+                style
+            );
+
+            // 選択キャラクター番号
+            int characterIndex =
+                player.SelectedCharacter.Value;
+
+            // キャラクター画像
+            if (characterIndex >= 0 &&
+                characterIndex < player.characterSprites.Length)
             {
-                bool ready = localPlayer.IsReady.Value;
+                Sprite sprite =
+                    player.characterSprites[characterIndex];
 
-                string buttonText =
-                    ready ? "準備取消" : "準備OK";
-
-                if (GUI.Button(
-                    new Rect(30, 220, 300, 80),
-                    buttonText))
+                if (sprite != null)
                 {
-                    localPlayer.SetReadyServerRpc(!ready);
+                    GUI.DrawTexture(
+                        new Rect(x + 25, 150, 150, 150),
+                        sprite.texture,
+                        ScaleMode.ScaleToFit,
+                        true
+                    );
                 }
-
-                GUI.Label(
-                    new Rect(30, 320, 500, 40),
-                    ready ? "準備完了！" : "まだ準備していません",
-                    style
-                );
             }
-            else
+
+            GUI.Label(
+                new Rect(x, 305, 200, 40),
+                "キャラクター " + (characterIndex + 1),
+                style
+            );
+
+            GUI.Label(
+                new Rect(x, 345, 200, 40),
+                player.IsReady.Value
+                    ? "準備完了！"
+                    : "準備中...",
+                style
+            );
+        }
+
+        // キャラクター選択欄
+        GUI.Label(
+            new Rect(0, 395, 800, 40),
+            "使用するキャラクターを選択",
+            style
+        );
+
+        // 自分のPlayerが所有者である場合だけ選択可能
+        bool canSelect =
+            localPlayer != null &&
+            localPlayer.IsSpawned &&
+            localPlayer.IsOwner;
+
+        GUI.enabled = canSelect;
+
+        for (int i = 0; i < 3; i++)
+        {
+            int x = 160 + i * 160;
+
+            bool selected =
+                canSelect &&
+                localPlayer.SelectedCharacter.Value == i;
+
+            if (GUI.Button(
+                new Rect(x, 440, 140, 50),
+                selected
+                    ? "選択中"
+                    : "キャラクター " + (i + 1)))
             {
-                GUI.Label(
-                    new Rect(30, 220, 500, 40),
-                    "自分のPlayerを取得できていません",
-                    style
-                );
+                localPlayer.ChangeCharacterServerRpc(i);
             }
         }
 
-        // Host専用：全員の準備状態を確認
+        // 準備ボタン
+        if (canSelect)
+        {
+            bool ready = localPlayer.IsReady.Value;
+
+            if (GUI.Button(
+                new Rect(250, 510, 300, 55),
+                ready ? "準備取消" : "準備OK"))
+            {
+                localPlayer.SetReadyServerRpc(!ready);
+            }
+        }
+
+        // GUIを再び有効化
+        GUI.enabled = true;
+
+        // Host専用ゲーム開始
         if (manager.IsHost)
         {
             bool allReady = true;
@@ -125,7 +223,7 @@ public class LobbyUI : MonoBehaviour
             }
 
             GUI.Label(
-                new Rect(30, 220, 500, 40),
+                new Rect(570, 510, 200, 35),
                 "参加人数 : " + playerCount,
                 style
             );
@@ -133,7 +231,7 @@ public class LobbyUI : MonoBehaviour
             if (allReady && playerCount >= 2)
             {
                 if (GUI.Button(
-                    new Rect(30, 280, 300, 80),
+                    new Rect(570, 550, 200, 45),
                     "ゲーム開始"))
                 {
                     StartBattle();
@@ -142,32 +240,28 @@ public class LobbyUI : MonoBehaviour
             else
             {
                 GUI.Label(
-                    new Rect(30, 280, 600, 40),
-                    "全員の準備完了を待っています",
+                    new Rect(570, 550, 220, 35),
+                    "準備完了を待っています",
                     style
                 );
             }
         }
+
+        GUI.enabled = true;
     }
 
-    void StartBattle()
+    // ゲーム開始
+    private void StartBattle()
     {
         if (manager == null || !manager.IsHost)
             return;
 
         if (!manager.IsListening)
-        {
-            Debug.LogError("ネットワークが開始されていません");
             return;
-        }
 
-        Debug.Log("GameSceneへ移動します");
-
-        var status = manager.SceneManager.LoadScene(
+        manager.SceneManager.LoadScene(
             "GameScene",
             LoadSceneMode.Single
         );
-
-        Debug.Log("シーン移動結果 : " + status);
     }
 }

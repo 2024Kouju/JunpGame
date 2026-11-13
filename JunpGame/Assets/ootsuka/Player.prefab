@@ -34,8 +34,8 @@ Transform:
   m_GameObject: {fileID: 4093135523100010125}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.32825136, y: 1.4834338, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalPosition: {x: 0.32825136, y: 1.4883, z: 0}
+  m_LocalScale: {x: 1, y: 0.99015164, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 4403246151005621333}
@@ -82,7 +82,7 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
+  m_Sprite: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -90,7 +90,7 @@ SpriteRenderer:
   m_Size: {x: 1, y: 1}
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
-  m_WasSpriteAssigned: 1
+  m_WasSpriteAssigned: 0
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
 --- !u!114 &1322483530738251480
@@ -157,6 +157,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: edfb90b5e675de8499324966fb8a77a3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  characterSprites:
+  - {fileID: 21300000, guid: 3d6aeeeac3c1cb64b8cd32a8bb22ff52, type: 3}
+  - {fileID: 21300000, guid: fea25385aae9ca7429ca62a5393cf429, type: 3}
+  - {fileID: 21300000, guid: 9ea612e0e05572d4a89a984e517d6888, type: 3}
+  SelectedCharacter:
+    m_InternalValue: 0
   IsReady:
     m_InternalValue: 0
 --- !u!61 &4455116184987439045
@@ -191,7 +197,7 @@ BoxCollider2D:
   m_IsTrigger: 0
   m_UsedByEffector: 0
   m_UsedByComposite: 0
-  m_Offset: {x: 0, y: 0}
+  m_Offset: {x: 0, y: -0.083106756}
   m_SpriteTilingProperty:
     border: {x: 0, y: 0, z: 0, w: 0}
     pivot: {x: 0.5, y: 0.5}
@@ -202,7 +208,7 @@ BoxCollider2D:
     adaptiveTiling: 0
   m_AutoTiling: 0
   serializedVersion: 2
-  m_Size: {x: 1, y: 1}
+  m_Size: {x: 1, y: 2.3297033}
   m_EdgeRadius: 0
 --- !u!50 &551805219678092611
 Rigidbody2D:
@@ -227,7 +233,7 @@ Rigidbody2D:
   m_ExcludeLayers:
     serializedVersion: 2
     m_Bits: 0
-  m_Interpolate: 0
+  m_Interpolate: 1
   m_SleepingMode: 1
   m_CollisionDetection: 1
   m_Constraints: 4
