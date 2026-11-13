@@ -29,7 +29,15 @@ public class PlayerController : MonoBehaviour
         // A D‚Å¶‰EˆÚ“®
         float moveX = 0;
 
-    
+        if (Input.GetKey(KeyCode.A))
+        {
+            moveX = -1;
+        }
+        else if (Input.GetKey(KeyCode.D))
+        {
+            moveX = 1;
+        }
+
         rb.velocity = new Vector2(moveX * moveSpeed, rb.velocity.y);
 
         // W‚ÅƒWƒƒƒ“ƒv
