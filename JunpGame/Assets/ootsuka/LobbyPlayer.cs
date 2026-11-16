@@ -8,8 +8,10 @@ public class LobbyPlayer : NetworkBehaviour
     [Header("キャラクター画像")]
     public Sprite[] characterSprites = new Sprite[3];
 
-    [Header("Player1アニメーション")]
+    [Header("Animator Controllers")]
     public RuntimeAnimatorController player1Animator;
+    public RuntimeAnimatorController player2Animator;
+    public RuntimeAnimatorController player3Animator;
 
     private SpriteRenderer spriteRenderer;
     private Animator animator;
@@ -77,10 +79,8 @@ public class LobbyPlayer : NetworkBehaviour
 
         if (animator != null)
         {
-            // Player1だけアニメーションを使用
-            bool isPlayer1 = SelectedCharacter.Value == 0;
-
-            animator.enabled = isGameScene && isPlayer1;
+            // Player1・2・3すべてアニメーションを使用
+            animator.enabled = isGameScene;
         }
     }
 
@@ -107,32 +107,25 @@ public class LobbyPlayer : NetworkBehaviour
         UpdateVisibility();
     }
 
-    // キャラクター画像とAnimator設定
+    // キャラクター画像とAnimator Controllerを設定
     private void UpdateCharacterAppearance(int index)
     {
-        if (index < 0 || index >= characterSprites.Length)
+        if (animator == null)
             return;
 
-        if (animator != null)
+        switch (index)
         {
-            if (index == 0)
-            {
-                // Player1
-                if (player1Animator != null)
-                {
-                    animator.runtimeAnimatorController =
-                        player1Animator;
-                }
-            }
-        }
+            case 0:
+                animator.runtimeAnimatorController = player1Animator;
+                break;
 
-        // Player2・3は従来の静止画像
-        if (spriteRenderer != null)
-        {
-            if (index != 0)
-            {
-                spriteRenderer.sprite = characterSprites[index];
-            }
+            case 1:
+                animator.runtimeAnimatorController = player2Animator;
+                break;
+
+            case 2:
+                animator.runtimeAnimatorController = player3Animator;
+                break;
         }
     }
 

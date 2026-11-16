@@ -106,7 +106,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  GlobalObjectIdHash: 366787057
+  GlobalObjectIdHash: 3117303226
   InScenePlacedSourceGlobalObjectIdHash: 3117303226
   AlwaysReplicateAsRoot: 0
   SynchronizeTransform: 1
@@ -164,6 +164,8 @@ MonoBehaviour:
   - {fileID: 21300000, guid: fea25385aae9ca7429ca62a5393cf429, type: 3}
   - {fileID: 21300000, guid: 9ea612e0e05572d4a89a984e517d6888, type: 3}
   player1Animator: {fileID: 9100000, guid: f967f529e3fd8bd42a49e125638b4eba, type: 2}
+  player2Animator: {fileID: 9100000, guid: d10905f47ee76034dadf6ccd148b5bac, type: 2}
+  player3Animator: {fileID: 9100000, guid: 54d8a02d1d4ab064a8be3f08d373bf67, type: 2}
   SelectedCharacter:
     m_InternalValue: 0
   IsReady:

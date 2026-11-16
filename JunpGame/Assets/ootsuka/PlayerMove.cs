@@ -78,14 +78,13 @@ public class PlayerMove : NetworkBehaviour
 
     private void Update()
     {
-        if (!IsGameScene())
+        if (!IsGameScene() || !IsSpawned)
             return;
 
-        if (!IsSpawned)
-            return;
-
+        // 3人全員のアニメーションを更新
         UpdateAnimation();
 
+        // 自分のキャラクターだけ操作
         if (!IsOwner)
             return;
 
@@ -124,14 +123,13 @@ public class PlayerMove : NetworkBehaviour
             Mathf.Abs(deltaX) /
             Mathf.Max(Time.deltaTime, 0.0001f);
 
-        // 歩行アニメーション
+        // 待機・歩行アニメーション
         animator.SetFloat("Speed", speed);
 
-        // 接地状態
+        // ジャンプ・着地アニメーション
         animator.SetBool("Grounded", Grounded.Value);
 
-        // 左右反転
-        // 現在の素材に合わせた向き
+        // 左右反転（現在の素材に合わせた向き）
         if (deltaX > 0.001f)
         {
             spriteRenderer.flipX = true;
