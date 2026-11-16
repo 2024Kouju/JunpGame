@@ -1,6 +1,7 @@
 
 using UnityEngine;
 using Unity.Netcode;
+using UnityEngine.SceneManagement;
 
 public class LobbyPlayer : NetworkBehaviour
 {
@@ -35,11 +36,42 @@ public class LobbyPlayer : NetworkBehaviour
         SelectedCharacter.OnValueChanged += OnCharacterChanged;
 
         UpdateCharacterImage(SelectedCharacter.Value);
+        UpdateVisibility();
     }
 
     public override void OnNetworkDespawn()
     {
         SelectedCharacter.OnValueChanged -= OnCharacterChanged;
+    }
+
+    // シーン切り替え時
+    private void OnEnable()
+    {
+        SceneManager.activeSceneChanged += OnSceneChanged;
+    }
+
+    private void OnDisable()
+    {
+        SceneManager.activeSceneChanged -= OnSceneChanged;
+    }
+
+    private void OnSceneChanged(Scene oldScene, Scene newScene)
+    {
+        UpdateVisibility();
+    }
+
+    // Player画像の表示切り替え
+    private void UpdateVisibility()
+    {
+        if (spriteRenderer == null)
+            return;
+
+        bool isLobby =
+            SceneManager.GetActiveScene().name == "LobbyScene";
+
+        // LobbySceneでは非表示
+        // GameSceneでは表示
+        spriteRenderer.enabled = !isLobby;
     }
 
     // キャラクター変更

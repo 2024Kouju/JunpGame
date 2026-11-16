@@ -137,7 +137,6 @@ public class PlayerMove : NetworkBehaviour
         // バネに着地したとき
         if (collision.collider.CompareTag("Spring"))
         {
-            // 下方向に移動しているときだけ反応
             if (rb.velocity.y <= 0f &&
                 rb.position.y > collision.transform.position.y)
             {
@@ -181,8 +180,9 @@ public class PlayerMove : NetworkBehaviour
         if (!IsServer || sceneName != "GameScene")
             return;
 
-        // プレイヤーごとに出現位置を変更
-        float startX = ((int)OwnerClientId - 1) * startSpacing;
+        // ClientIdに応じて出現位置を変更
+        float startX =
+            ((int)OwnerClientId - 1) * startSpacing;
 
         Vector2 spawnPosition = new Vector2(
             startX,

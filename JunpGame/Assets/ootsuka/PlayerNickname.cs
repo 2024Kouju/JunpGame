@@ -3,6 +3,7 @@ using UnityEngine;
 using Unity.Netcode;
 using Unity.Collections;
 using TMPro;
+using UnityEngine.SceneManagement;
 
 public class PlayerNickname : NetworkBehaviour
 {
@@ -36,6 +37,7 @@ public class PlayerNickname : NetworkBehaviour
         }
 
         UpdateNicknameText();
+        UpdateVisibility();
     }
 
     public override void OnNetworkDespawn()
@@ -43,20 +45,54 @@ public class PlayerNickname : NetworkBehaviour
         nickname.OnValueChanged -= OnNicknameChanged;
     }
 
+    private void OnEnable()
+    {
+        SceneManager.activeSceneChanged += OnSceneChanged;
+    }
+
+    private void OnDisable()
+    {
+        SceneManager.activeSceneChanged -= OnSceneChanged;
+    }
+
+    // シーン切り替え時
+    private void OnSceneChanged(Scene oldScene, Scene newScene)
+    {
+        UpdateVisibility();
+    }
+
+    // 名前の表示切り替え
+    private void UpdateVisibility()
+    {
+        if (nicknameText == null)
+            return;
+
+        bool isLobby =
+            SceneManager.GetActiveScene().name == "LobbyScene";
+
+        // LobbySceneでは非表示
+        // GameSceneでは表示
+        nicknameText.gameObject.SetActive(!isLobby);
+    }
+
     void LateUpdate()
     {
-        if (nicknameText != null)
-        {
-            // Playerの頭上に追従
-            nicknameText.transform.position =
-                transform.position + nameOffset;
+        if (nicknameText == null)
+            return;
 
-            // 2Dゲームのカメラに対して文字を正面に向ける
-            if (Camera.main != null)
-            {
-                nicknameText.transform.rotation =
-                    Camera.main.transform.rotation;
-            }
+        // 非表示中は処理しない
+        if (!nicknameText.gameObject.activeSelf)
+            return;
+
+        // Playerの頭上に追従
+        nicknameText.transform.position =
+            transform.position + nameOffset;
+
+        // カメラに対して文字を正面に向ける
+        if (Camera.main != null)
+        {
+            nicknameText.transform.rotation =
+                Camera.main.transform.rotation;
         }
     }
 
@@ -66,10 +102,12 @@ public class PlayerNickname : NetworkBehaviour
     {
         UpdateNicknameText();
     }
+
     public string GetNickname()
     {
         return nickname.Value.ToString();
     }
+
     void UpdateNicknameText()
     {
         if (nicknameText != null)

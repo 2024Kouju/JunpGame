@@ -24,7 +24,6 @@ public class LobbyUI : MonoBehaviour
         if (manager == null)
             return;
 
-        // GUIの有効状態をリセット
         GUI.enabled = true;
 
         GUIStyle titleStyle = new GUIStyle(GUI.skin.label);
@@ -58,7 +57,7 @@ public class LobbyUI : MonoBehaviour
             }
         }
 
-        // Player取得・所有権確認
+        // Player取得確認
         if (localPlayer != null)
         {
             GUI.Label(
@@ -85,7 +84,16 @@ public class LobbyUI : MonoBehaviour
             a.OwnerClientId.CompareTo(b.OwnerClientId)
         );
 
-        // 全プレイヤーを表示
+        // 参加人数
+        int playerCount = 0;
+
+        foreach (LobbyPlayer player in players)
+        {
+            if (player != null && player.IsSpawned)
+                playerCount++;
+        }
+
+        // 2人・3人に応じて表示
         for (int i = 0; i < players.Length; i++)
         {
             LobbyPlayer player = players[i];
@@ -93,8 +101,17 @@ public class LobbyUI : MonoBehaviour
             if (player == null || !player.IsSpawned)
                 continue;
 
-            // 2人を左右に配置
-            int x = i == 0 ? 100 : 500;
+            // 3人を横並びに配置
+            int x;
+
+            if (playerCount == 2)
+            {
+                x = i == 0 ? 150 : 450;
+            }
+            else
+            {
+                x = 20 + i * 280;
+            }
 
             string playerType =
                 player.OwnerClientId == 0
@@ -191,19 +208,16 @@ public class LobbyUI : MonoBehaviour
             }
         }
 
-        // GUIを再び有効化
         GUI.enabled = true;
 
         // Host専用ゲーム開始
         if (manager.IsHost)
         {
             bool allReady = true;
-            int playerCount = 0;
+            int connectedCount = manager.ConnectedClientsIds.Count;
 
             foreach (ulong clientId in manager.ConnectedClientsIds)
             {
-                playerCount++;
-
                 NetworkClient client =
                     manager.ConnectedClients[clientId];
 
@@ -223,12 +237,15 @@ public class LobbyUI : MonoBehaviour
             }
 
             GUI.Label(
-                new Rect(570, 510, 200, 35),
-                "参加人数 : " + playerCount,
-                style
-            );
+      new Rect(570, 510, 220, 35),
+      "接続人数 : " + manager.ConnectedClientsIds.Count
+      + " / " + NetworkUI.MaxPlayers,
+      style
+  );
 
-            if (allReady && playerCount >= 2)
+            // 設定した人数が揃い全員準備完了
+            if (allReady &&
+                connectedCount == NetworkUI.MaxPlayers)
             {
                 if (GUI.Button(
                     new Rect(570, 550, 200, 45),
