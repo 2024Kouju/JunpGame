@@ -21,13 +21,27 @@ public class PlayerMove : NetworkBehaviour
     [Header("GameScene Spawn")]
     public float spawnY = 1f;
 
+    [Header("Animation Settings")]
+    public float animationPlaybackSpeed = 1f;
+
     private Rigidbody2D rb;
     private Collider2D playerCollider;
+    private Animator animator;
+    private SpriteRenderer spriteRenderer;
 
     private Vector2 moveInput;
     private bool isGrounded = false;
 
-    // GameSceneかどうか確認
+    private Vector3 previousPosition;
+
+    // 接地状態を全員に同期
+    private NetworkVariable<bool> Grounded =
+        new NetworkVariable<bool>(
+            false,
+            NetworkVariableReadPermission.Everyone,
+            NetworkVariableWritePermission.Server
+        );
+
     private bool IsGameScene()
     {
         return SceneManager.GetActiveScene().name == "GameScene";
@@ -37,14 +51,21 @@ public class PlayerMove : NetworkBehaviour
     {
         rb = GetComponent<Rigidbody2D>();
         playerCollider = GetComponent<Collider2D>();
+        animator = GetComponent<Animator>();
+        spriteRenderer = GetComponent<SpriteRenderer>();
 
-        // 回転を禁止
         rb.constraints = RigidbodyConstraints2D.FreezeRotation;
+
+        if (animator != null)
+        {
+            animator.speed = animationPlaybackSpeed;
+        }
     }
 
     public override void OnNetworkSpawn()
     {
-        // サーバー側でシーン切り替えを監視
+        previousPosition = transform.position;
+
         if (IsServer)
         {
             NetworkManager.SceneManager.OnLoadEventCompleted
@@ -57,12 +78,15 @@ public class PlayerMove : NetworkBehaviour
 
     private void Update()
     {
-        // GameScene以外では操作しない
         if (!IsGameScene())
             return;
 
-        // 自分のプレイヤーだけ操作
-        if (!IsSpawned || !IsOwner)
+        if (!IsSpawned)
+            return;
+
+        UpdateAnimation();
+
+        if (!IsOwner)
             return;
 
         float x = 0f;
@@ -82,6 +106,42 @@ public class PlayerMove : NetworkBehaviour
         {
             JumpServerRpc();
         }
+    }
+
+    // アニメーション更新
+    private void UpdateAnimation()
+    {
+        if (animator == null || !animator.enabled)
+            return;
+
+        if (spriteRenderer == null)
+            return;
+
+        float deltaX =
+            transform.position.x - previousPosition.x;
+
+        float speed =
+            Mathf.Abs(deltaX) /
+            Mathf.Max(Time.deltaTime, 0.0001f);
+
+        // 歩行アニメーション
+        animator.SetFloat("Speed", speed);
+
+        // 接地状態
+        animator.SetBool("Grounded", Grounded.Value);
+
+        // 左右反転
+        // 現在の素材に合わせた向き
+        if (deltaX > 0.001f)
+        {
+            spriteRenderer.flipX = true;
+        }
+        else if (deltaX < -0.001f)
+        {
+            spriteRenderer.flipX = false;
+        }
+
+        previousPosition = transform.position;
     }
 
     // 移動情報をサーバーへ送信
@@ -110,6 +170,7 @@ public class PlayerMove : NetworkBehaviour
         );
 
         isGrounded = false;
+        Grounded.Value = false;
     }
 
     private void FixedUpdate()
@@ -120,8 +181,6 @@ public class PlayerMove : NetworkBehaviour
         if (!IsSpawned || !IsServer)
             return;
 
-        // 横方向の移動
-        // 縦方向の速度は維持する
         rb.velocity = new Vector2(
             moveInput.x * moveSpeed,
             rb.velocity.y
@@ -146,6 +205,7 @@ public class PlayerMove : NetworkBehaviour
                 );
 
                 isGrounded = false;
+                Grounded.Value = false;
 
                 Debug.Log("バネでジャンプ！");
             }
@@ -155,6 +215,7 @@ public class PlayerMove : NetworkBehaviour
         if (collision.collider.CompareTag("Ground"))
         {
             isGrounded = true;
+            Grounded.Value = true;
         }
     }
 
@@ -167,6 +228,7 @@ public class PlayerMove : NetworkBehaviour
         if (collision.collider.CompareTag("Ground"))
         {
             isGrounded = false;
+            Grounded.Value = false;
         }
     }
 
@@ -180,7 +242,6 @@ public class PlayerMove : NetworkBehaviour
         if (!IsServer || sceneName != "GameScene")
             return;
 
-        // ClientIdに応じて出現位置を変更
         float startX =
             ((int)OwnerClientId - 1) * startSpacing;
 
@@ -194,6 +255,9 @@ public class PlayerMove : NetworkBehaviour
 
         moveInput = Vector2.zero;
         isGrounded = false;
+        Grounded.Value = false;
+
+        previousPosition = spawnPosition;
 
         Debug.Log(
             "Player出現位置設定 OwnerID:" +
@@ -205,7 +269,6 @@ public class PlayerMove : NetworkBehaviour
 
     public override void OnNetworkDespawn()
     {
-        // イベント登録解除
         if (IsServer &&
             NetworkManager != null &&
             NetworkManager.SceneManager != null)

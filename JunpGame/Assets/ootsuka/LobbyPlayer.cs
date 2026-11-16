@@ -8,7 +8,11 @@ public class LobbyPlayer : NetworkBehaviour
     [Header("キャラクター画像")]
     public Sprite[] characterSprites = new Sprite[3];
 
+    [Header("Player1アニメーション")]
+    public RuntimeAnimatorController player1Animator;
+
     private SpriteRenderer spriteRenderer;
+    private Animator animator;
 
     // 選択キャラクター
     public NetworkVariable<int> SelectedCharacter =
@@ -29,13 +33,14 @@ public class LobbyPlayer : NetworkBehaviour
     private void Awake()
     {
         spriteRenderer = GetComponent<SpriteRenderer>();
+        animator = GetComponent<Animator>();
     }
 
     public override void OnNetworkSpawn()
     {
         SelectedCharacter.OnValueChanged += OnCharacterChanged;
 
-        UpdateCharacterImage(SelectedCharacter.Value);
+        UpdateCharacterAppearance(SelectedCharacter.Value);
         UpdateVisibility();
     }
 
@@ -44,7 +49,6 @@ public class LobbyPlayer : NetworkBehaviour
         SelectedCharacter.OnValueChanged -= OnCharacterChanged;
     }
 
-    // シーン切り替え時
     private void OnEnable()
     {
         SceneManager.activeSceneChanged += OnSceneChanged;
@@ -60,18 +64,24 @@ public class LobbyPlayer : NetworkBehaviour
         UpdateVisibility();
     }
 
-    // Player画像の表示切り替え
+    // 表示とアニメーションの切り替え
     private void UpdateVisibility()
     {
-        if (spriteRenderer == null)
-            return;
+        bool isGameScene =
+            SceneManager.GetActiveScene().name == "GameScene";
 
-        bool isLobby =
-            SceneManager.GetActiveScene().name == "LobbyScene";
+        if (spriteRenderer != null)
+        {
+            spriteRenderer.enabled = isGameScene;
+        }
 
-        // LobbySceneでは非表示
-        // GameSceneでは表示
-        spriteRenderer.enabled = !isLobby;
+        if (animator != null)
+        {
+            // Player1だけアニメーションを使用
+            bool isPlayer1 = SelectedCharacter.Value == 0;
+
+            animator.enabled = isGameScene && isPlayer1;
+        }
     }
 
     // キャラクター変更
@@ -83,7 +93,6 @@ public class LobbyPlayer : NetworkBehaviour
 
         SelectedCharacter.Value = index;
 
-        // キャラクター変更時は準備解除
         IsReady.Value = false;
 
         Debug.Log(
@@ -92,21 +101,38 @@ public class LobbyPlayer : NetworkBehaviour
         );
     }
 
-    // キャラクター変更時
     private void OnCharacterChanged(int oldValue, int newValue)
     {
-        UpdateCharacterImage(newValue);
+        UpdateCharacterAppearance(newValue);
+        UpdateVisibility();
     }
 
-    // 画像変更
-    private void UpdateCharacterImage(int index)
+    // キャラクター画像とAnimator設定
+    private void UpdateCharacterAppearance(int index)
     {
-        if (spriteRenderer == null)
+        if (index < 0 || index >= characterSprites.Length)
             return;
 
-        if (index >= 0 && index < characterSprites.Length)
+        if (animator != null)
         {
-            spriteRenderer.sprite = characterSprites[index];
+            if (index == 0)
+            {
+                // Player1
+                if (player1Animator != null)
+                {
+                    animator.runtimeAnimatorController =
+                        player1Animator;
+                }
+            }
+        }
+
+        // Player2・3は従来の静止画像
+        if (spriteRenderer != null)
+        {
+            if (index != 0)
+            {
+                spriteRenderer.sprite = characterSprites[index];
+            }
         }
     }
 
