@@ -9,7 +9,7 @@ public class LobbyUI : MonoBehaviour
     private NetworkManager manager;
     private LobbyPlayer localPlayer;
 
-    private int fontSize = 22;
+    private int fontSize = 30;
 
     private void Start()
     {
@@ -26,8 +26,18 @@ public class LobbyUI : MonoBehaviour
 
         GUI.enabled = true;
 
+        // 1600×900を基準にする
+        float scaleX = Screen.width / 1600f;
+        float scaleY = Screen.height / 900f;
+
+        GUI.matrix = Matrix4x4.TRS(
+            Vector3.zero,
+            Quaternion.identity,
+            new Vector3(scaleX, scaleY, 1f)
+        );
+
         GUIStyle titleStyle = new GUIStyle(GUI.skin.label);
-        titleStyle.fontSize = 30;
+        titleStyle.fontSize = 42;
         titleStyle.alignment = TextAnchor.MiddleCenter;
         titleStyle.normal.textColor = Color.white;
 
@@ -37,7 +47,7 @@ public class LobbyUI : MonoBehaviour
         style.normal.textColor = Color.white;
 
         GUI.Label(
-            new Rect(0, 20, 800, 50),
+            new Rect(0, 25, 1600, 70),
             "キャラクター選択",
             titleStyle
         );
@@ -61,7 +71,7 @@ public class LobbyUI : MonoBehaviour
         if (localPlayer != null)
         {
             GUI.Label(
-                new Rect(20, 65, 760, 30),
+                new Rect(20, 90, 1560, 40),
                 "Player取得成功 / IsOwner : " + localPlayer.IsOwner,
                 style
             );
@@ -69,7 +79,7 @@ public class LobbyUI : MonoBehaviour
         else
         {
             GUI.Label(
-                new Rect(20, 65, 760, 30),
+                new Rect(20, 90, 1560, 40),
                 "Player取得待機中",
                 style
             );
@@ -93,7 +103,9 @@ public class LobbyUI : MonoBehaviour
                 playerCount++;
         }
 
-        // 2人・3人に応じて表示
+        // Player表示
+        int displayIndex = 0;
+
         for (int i = 0; i < players.Length; i++)
         {
             LobbyPlayer player = players[i];
@@ -101,26 +113,27 @@ public class LobbyUI : MonoBehaviour
             if (player == null || !player.IsSpawned)
                 continue;
 
-            // 3人を横並びに配置
+            // 2人・3人に応じて横並びに配置
             int x;
 
             if (playerCount == 2)
             {
-                x = i == 0 ? 150 : 450;
+                x = displayIndex == 0 ? 400 : 1000;
             }
             else
             {
-                x = 20 + i * 280;
+                x = 100 + displayIndex * 500;
             }
+
+            displayIndex++;
 
             string playerType =
                 player.OwnerClientId == 0
                 ? "HOST"
                 : "CLIENT";
 
-            // プレイヤー名
             GUI.Label(
-                new Rect(x, 105, 200, 40),
+                new Rect(x, 150, 400, 55),
                 playerType,
                 style
             );
@@ -139,7 +152,7 @@ public class LobbyUI : MonoBehaviour
                 if (sprite != null)
                 {
                     GUI.DrawTexture(
-                        new Rect(x + 25, 150, 150, 150),
+                        new Rect(x + 50, 215, 300, 250),
                         sprite.texture,
                         ScaleMode.ScaleToFit,
                         true
@@ -148,13 +161,13 @@ public class LobbyUI : MonoBehaviour
             }
 
             GUI.Label(
-                new Rect(x, 305, 200, 40),
+                new Rect(x, 475, 400, 50),
                 "キャラクター " + (characterIndex + 1),
                 style
             );
 
             GUI.Label(
-                new Rect(x, 345, 200, 40),
+                new Rect(x, 525, 400, 50),
                 player.IsReady.Value
                     ? "準備完了！"
                     : "準備中...",
@@ -164,7 +177,7 @@ public class LobbyUI : MonoBehaviour
 
         // キャラクター選択欄
         GUI.Label(
-            new Rect(0, 395, 800, 40),
+            new Rect(0, 600, 1600, 50),
             "使用するキャラクターを選択",
             style
         );
@@ -179,14 +192,14 @@ public class LobbyUI : MonoBehaviour
 
         for (int i = 0; i < 3; i++)
         {
-            int x = 160 + i * 160;
+            int x = 350 + i * 310;
 
             bool selected =
                 canSelect &&
                 localPlayer.SelectedCharacter.Value == i;
 
             if (GUI.Button(
-                new Rect(x, 440, 140, 50),
+                new Rect(x, 660, 280, 65),
                 selected
                     ? "選択中"
                     : "キャラクター " + (i + 1)))
@@ -201,7 +214,7 @@ public class LobbyUI : MonoBehaviour
             bool ready = localPlayer.IsReady.Value;
 
             if (GUI.Button(
-                new Rect(250, 510, 300, 55),
+                new Rect(600, 750, 400, 75),
                 ready ? "準備取消" : "準備OK"))
             {
                 localPlayer.SetReadyServerRpc(!ready);
@@ -214,7 +227,8 @@ public class LobbyUI : MonoBehaviour
         if (manager.IsHost)
         {
             bool allReady = true;
-            int connectedCount = manager.ConnectedClientsIds.Count;
+            int connectedCount =
+                manager.ConnectedClientsIds.Count;
 
             foreach (ulong clientId in manager.ConnectedClientsIds)
             {
@@ -237,18 +251,17 @@ public class LobbyUI : MonoBehaviour
             }
 
             GUI.Label(
-      new Rect(570, 510, 220, 35),
-      "接続人数 : " + manager.ConnectedClientsIds.Count
-      + " / " + NetworkUI.MaxPlayers,
-      style
-  );
+                new Rect(1150, 750, 400, 45),
+                "接続人数 : " + connectedCount
+                + " / " + NetworkUI.MaxPlayers,
+                style
+            );
 
-            // 設定した人数が揃い全員準備完了
-            if (allReady &&
-                connectedCount == NetworkUI.MaxPlayers)
+            // 1人以上接続していて、全員準備完了なら開始可能
+            if (allReady && connectedCount >= 1)
             {
                 if (GUI.Button(
-                    new Rect(570, 550, 200, 45),
+                    new Rect(1150, 805, 350, 65),
                     "ゲーム開始"))
                 {
                     StartBattle();
@@ -257,14 +270,37 @@ public class LobbyUI : MonoBehaviour
             else
             {
                 GUI.Label(
-                    new Rect(570, 550, 220, 35),
+                    new Rect(1100, 805, 450, 45),
                     "準備完了を待っています",
                     style
                 );
             }
+
+            //// 設定した人数が揃い全員準備完了
+            //if (allReady &&
+            //    connectedCount == NetworkUI.MaxPlayers)
+            //{
+            //    if (GUI.Button(
+            //        new Rect(1150, 805, 350, 65),
+            //        "ゲーム開始"))
+            //    {
+            //        StartBattle();
+            //    }
+            //}
+            //else
+            //{
+            //    GUI.Label(
+            //        new Rect(1100, 805, 450, 45),
+            //        "準備完了を待っています",
+            //        style
+            //    );
+            //}
         }
 
         GUI.enabled = true;
+
+        // GUI.matrixを初期化
+        GUI.matrix = Matrix4x4.identity;
     }
 
     // ゲーム開始

@@ -1,8 +1,9 @@
 
-using UnityEngine;
-using Unity.Netcode;
-using UnityEngine.SceneManagement;
+using System;
 using System.Collections.Generic;
+using Unity.Netcode;
+using UnityEngine;
+using UnityEngine.SceneManagement;
 
 [RequireComponent(typeof(Rigidbody2D))]
 [RequireComponent(typeof(Collider2D))]
@@ -28,11 +29,16 @@ public class PlayerMove : NetworkBehaviour
     private Collider2D playerCollider;
     private Animator animator;
     private SpriteRenderer spriteRenderer;
+    private LobbyPlayer lobbyPlayer;
 
     private Vector2 moveInput;
     private bool isGrounded = false;
 
     private Vector3 previousPosition;
+
+    // 接触している足場を個別に管理
+    private HashSet<Collider2D> groundColliders =
+        new HashSet<Collider2D>();
 
     // 接地状態を全員に同期
     private NetworkVariable<bool> Grounded =
@@ -53,6 +59,7 @@ public class PlayerMove : NetworkBehaviour
         playerCollider = GetComponent<Collider2D>();
         animator = GetComponent<Animator>();
         spriteRenderer = GetComponent<SpriteRenderer>();
+        lobbyPlayer = GetComponent<LobbyPlayer>();
 
         rb.constraints = RigidbodyConstraints2D.FreezeRotation;
 
@@ -81,10 +88,8 @@ public class PlayerMove : NetworkBehaviour
         if (!IsGameScene() || !IsSpawned)
             return;
 
-        // 3人全員のアニメーションを更新
         UpdateAnimation();
 
-        // 自分のキャラクターだけ操作
         if (!IsOwner)
             return;
 
@@ -100,7 +105,6 @@ public class PlayerMove : NetworkBehaviour
 
         SendInputServerRpc(input);
 
-        // Wキーでジャンプ
         if (Input.GetKeyDown(KeyCode.W))
         {
             JumpServerRpc();
@@ -123,20 +127,31 @@ public class PlayerMove : NetworkBehaviour
             Mathf.Abs(deltaX) /
             Mathf.Max(Time.deltaTime, 0.0001f);
 
-        // 待機・歩行アニメーション
         animator.SetFloat("Speed", speed);
 
-        // ジャンプ・着地アニメーション
+        // ネットワーク同期された接地状態を使用
         animator.SetBool("Grounded", Grounded.Value);
 
-        // 左右反転（現在の素材に合わせた向き）
+        // キャラクターごとの左右反転
+        bool reverseFlipDirection = false;
+
+        if (lobbyPlayer != null)
+        {
+            int characterIndex =
+                lobbyPlayer.SelectedCharacter.Value;
+
+            reverseFlipDirection =
+                characterIndex == 1 ||
+                characterIndex == 2;
+        }
+
         if (deltaX > 0.001f)
         {
-            spriteRenderer.flipX = true;
+            spriteRenderer.flipX = !reverseFlipDirection;
         }
         else if (deltaX < -0.001f)
         {
-            spriteRenderer.flipX = false;
+            spriteRenderer.flipX = reverseFlipDirection;
         }
 
         previousPosition = transform.position;
@@ -167,8 +182,8 @@ public class PlayerMove : NetworkBehaviour
             jumpForce
         );
 
-        isGrounded = false;
-        Grounded.Value = false;
+        // ジャンプ時に接地状態を解除
+        ClearGroundContacts();
     }
 
     private void FixedUpdate()
@@ -185,7 +200,7 @@ public class PlayerMove : NetworkBehaviour
         );
     }
 
-    // 衝突したとき
+    // 足場との接触判定
     private void OnCollisionEnter2D(Collision2D collision)
     {
         if (!IsServer || !IsGameScene())
@@ -202,22 +217,34 @@ public class PlayerMove : NetworkBehaviour
                     springJumpForce
                 );
 
-                isGrounded = false;
-                Grounded.Value = false;
+                ClearGroundContacts();
 
                 Debug.Log("バネでジャンプ！");
             }
+
+            return;
         }
 
         // 通常の足場
         if (collision.collider.CompareTag("Ground"))
         {
-            isGrounded = true;
-            Grounded.Value = true;
+            UpdateGroundContact(collision);
         }
     }
 
-    // 衝突から離れたとき
+    // 接触し続けている間も判定
+    private void OnCollisionStay2D(Collision2D collision)
+    {
+        if (!IsServer || !IsGameScene())
+            return;
+
+        if (collision.collider.CompareTag("Ground"))
+        {
+            UpdateGroundContact(collision);
+        }
+    }
+
+    // 足場との接触が終了したとき
     private void OnCollisionExit2D(Collision2D collision)
     {
         if (!IsServer || !IsGameScene())
@@ -225,44 +252,106 @@ public class PlayerMove : NetworkBehaviour
 
         if (collision.collider.CompareTag("Ground"))
         {
-            isGrounded = false;
-            Grounded.Value = false;
+            groundColliders.Remove(collision.collider);
+
+            UpdateGroundedState();
         }
     }
 
-    // シーン読み込み完了時
+    // 足場との接触状態を更新
+    private void UpdateGroundContact(Collision2D collision)
+    {
+        // 上向きの面に接触しているか確認
+        bool standingOnGround = false;
+
+        foreach (ContactPoint2D contact in collision.contacts)
+        {
+            if (contact.normal.y > 0.5f)
+            {
+                standingOnGround = true;
+                break;
+            }
+        }
+
+        // 上昇中は接地扱いにしない
+        if (rb.velocity.y > 0.1f)
+            return;
+
+        if (standingOnGround)
+        {
+            groundColliders.Add(collision.collider);
+        }
+
+        UpdateGroundedState();
+    }
+
+    // 接地状態を更新
+    private void UpdateGroundedState()
+    {
+        groundColliders.RemoveWhere(
+            collider => collider == null
+        );
+
+        isGrounded = groundColliders.Count > 0;
+
+        Grounded.Value = isGrounded;
+    }
+
+    // 接地状態を解除
+    private void ClearGroundContacts()
+    {
+        groundColliders.Clear();
+
+        isGrounded = false;
+        Grounded.Value = false;
+    }
+
+    // GameSceneへの移動完了時
     private void OnSceneLoadCompleted(
         string sceneName,
-        LoadSceneMode mode,
+        LoadSceneMode loadSceneMode,
         List<ulong> clientsCompleted,
         List<ulong> clientsTimedOut)
     {
-        if (!IsServer || sceneName != "GameScene")
+        if (sceneName != "GameScene")
             return;
 
-        float startX =
-            ((int)OwnerClientId - 1) * startSpacing;
+        if (!IsServer)
+            return;
 
-        Vector2 spawnPosition = new Vector2(
-            startX,
-            spawnY
+        var connectedIds =
+            NetworkManager.Singleton.ConnectedClientsIds;
+
+        ulong[] clientIds =
+            new ulong[connectedIds.Count];
+
+        for (int i = 0; i < connectedIds.Count; i++)
+        {
+            clientIds[i] = connectedIds[i];
+        }
+
+        Array.Sort(clientIds);
+
+        int playerIndex =
+            Array.IndexOf(clientIds, OwnerClientId);
+
+        // 左から等間隔に配置
+        float x =
+            (playerIndex - (clientIds.Length - 1) / 2f)
+            * startSpacing;
+
+        transform.position = new Vector3(
+            x,
+            spawnY,
+            0f
         );
 
-        rb.position = spawnPosition;
         rb.velocity = Vector2.zero;
-
         moveInput = Vector2.zero;
-        isGrounded = false;
-        Grounded.Value = false;
 
-        previousPosition = spawnPosition;
+        ClearGroundContacts();
 
-        Debug.Log(
-            "Player出現位置設定 OwnerID:" +
-            OwnerClientId +
-            " Position:" +
-            spawnPosition
-        );
+        previousPosition = transform.position;
     }
 
     public override void OnNetworkDespawn()
@@ -276,6 +365,7 @@ public class PlayerMove : NetworkBehaviour
         }
 
         moveInput = Vector2.zero;
-        isGrounded = false;
+
+        ClearGroundContacts();
     }
 }
