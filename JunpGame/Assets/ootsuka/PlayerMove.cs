@@ -11,7 +11,7 @@ public class PlayerMove : NetworkBehaviour
 {
     [Header("Move Settings")]
     public float moveSpeed = 5f;
-    public float startSpacing = 3f;
+    public float startSpacing = 1f;
 
     [Header("Jump Settings")]
     public float jumpForce = 7f;
@@ -20,7 +20,7 @@ public class PlayerMove : NetworkBehaviour
     public float springJumpForce = 15f;
 
     [Header("GameScene Spawn")]
-    public float spawnY = 1f;
+    public float spawnY = -1f;
 
     [Header("Animation Settings")]
     public float animationPlaybackSpeed = 1f;
