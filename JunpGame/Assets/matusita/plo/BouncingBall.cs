@@ -1,52 +1,25 @@
 using UnityEngine;
 
+// プレイヤーを弾き飛ばし、時間経過で元の位置に戻る
 public class BouncingBall : MonoBehaviour
 {
-    [Header("プレイヤー検知")]
-    public float detectionRange = 5f;
-
-    [Header("ボール移動")]
-    public float moveSpeed = 3f;
-
-    [Header("吹き飛ばし")]
+    [Header("吹き飛ばす力")]
     public float bounceForce = 10f;
 
-    private Rigidbody2D rb;
-    private Transform player;
+    [Header("戻るまでの時間")]
+    public float returnTime = 3f;
+
+    // 初期位置を保存
+    private Vector3 startPosition;
 
     void Start()
     {
-        rb = GetComponent<Rigidbody2D>();
-
-        GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
-
-        if (playerObj != null)
-        {
-            player = playerObj.transform;
-        }
-    }
-
-    void FixedUpdate()
-    {
-        if (player == null) return;
-
-        float distance = Vector2.Distance(transform.position, player.position);
-
-        if (distance <= detectionRange)
-        {
-            Vector2 direction =
-                (player.position - transform.position).normalized;
-
-            rb.velocity = direction * moveSpeed;
-        }
-        else
-        {
-            rb.velocity = Vector2.zero;
-        }
+        startPosition = transform.position;
     }
 
     private void OnCollisionEnter2D(Collision2D collision)
     {
+        // プレイヤーに当たったとき
         if (collision.gameObject.CompareTag("Player"))
         {
             Rigidbody2D playerRb =
@@ -54,13 +27,23 @@ public class BouncingBall : MonoBehaviour
 
             if (playerRb != null)
             {
+                // プレイヤーを弾き飛ばす方向
                 Vector2 direction =
-                    (collision.transform.position - transform.position)
-                    .normalized;
+                    (collision.transform.position - transform.position).normalized;
 
-                playerRb.AddForce(direction * bounceForce,
+                playerRb.AddForce(
+                    direction * bounceForce,
                     ForceMode2D.Impulse);
             }
+
+            // returnTime秒後に元の位置へ戻る
+            Invoke(nameof(ReturnToStart), returnTime);
         }
+    }
+
+    // 初期位置へ戻す
+    private void ReturnToStart()
+    {
+        transform.position = startPosition;
     }
 }
